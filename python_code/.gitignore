@@ -1,0 +1,4 @@
+.buildozer
+.idea
+venv
+venv_wsl
