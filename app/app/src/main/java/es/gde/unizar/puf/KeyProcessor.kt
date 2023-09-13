@@ -1,104 +1,103 @@
 package es.gde.unizar.puf
 
 import android.content.Context
+import es.gde.unizar.puf.Operation.AVER
+import es.gde.unizar.puf.Operation.NOISE
 import kotlin.math.abs
-import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class KeyProcessor(val cntx: Context) {
+
+class KeyProcessor(private val cntx: Context) {
+    private fun <T> readRawFile(file: Int, mapper: (Sequence<String>) -> T) = cntx.resources.openRawResource(file).reader().useLines(mapper)
 
 
-    fun readRawFile(file: Int) = cntx.resources.openRawResource(file).reader().readText()
+    private val nBits = 6
 
-
-    fun promedio_tramos(valores: List<Double>, tam_tramo: Int) = valores.chunked(tam_tramo).map { it.average() }
-
-    fun maximo_tramos(valores: List<Double>, tam_tramo: Int) = valores.chunked(tam_tramo).map { it.max() }
-
-    fun minimo_tramos(valores: List<Double>, tam_tramo: Int) = valores.chunked(tam_tramo).map { it.min() }
-
-    fun filtrar(valores: List<Double>, x_sigmas: Int) = run {
-        val promedio = valores.average()
-        val desviacion_estandar = sqrt(valores.map { (it - promedio).pow(2) }.average())
-
-        valores.filter { abs(it - promedio) <= x_sigmas * desviacion_estandar }
+    private val dataGauss = readRawFile(R.raw.gaussian_gray) { lines ->
+        lines.filter { it.isNotBlank() }
+            .map { it.split("\t") }
+            .map { (min, max, res) -> Triple(min.toFloat(), max.toFloat(), res.padStart(nBits, '0')) }
+            .toList()
     }
 
-    fun decimal_to_gray(decimal_num: Int, nbits: Int = 6) = run {
-        // Read data
-        val data_gauss = readRawFile(R.raw.gaussian_gray).lines()
-            .filter { it.isNotBlank() }
-            .map { it.split("\t") }
-            .map { (min, max, res) -> Triple(min.toFloat(), max.toFloat(), res.padStart(nbits, '0')) }
-
+    private fun Int.decimalToGray() = run {
         // In case precision is not adjusted
-        var decimal_num_fix = decimal_num
-        while (decimal_num_fix > 100 || decimal_num_fix < -100) decimal_num_fix /= 10
+        var decimalNumFix = this
+        while (decimalNumFix > 100 || decimalNumFix < -100) decimalNumFix /= 10
 
         // Assign
-        data_gauss.find { (min_num, max_num, _) -> decimal_num_fix >= min_num && decimal_num_fix < max_num }?.third ?: "0".repeat(nbits)
+        dataGauss.find { (min, max, _) -> decimalNumFix >= min && decimalNumFix < max }?.third ?: "?".repeat(nBits)
     }
 
-    fun procesa(filename: Int, col: Int, varr: String, tam_tramo: Int, nsigmas: Int, precision: Int) = run {
+
+    private fun process(column: Int, settings: Settings) = run {
         // Load data
-        readRawFile(filename).lines().map {
-            it.split("\t")[col].toDouble().let {
-                if (col == 2) it - 9.8 else it
+        readRawFile(settings.filename) { lines ->
+            lines.map { line ->
+                line.split("\t")[column].toDouble()
+                    .mapIf(column == 2) { it - 9.8 }
             }
-        }
-            // Select time interval
-            .run { subList(500, min(2000, size)) }
-            .let { valores ->
-                when (varr) {
-                    // Average estimation
-                    "aver" -> {
-                        // Average
-                        val datos_aver = promedio_tramos(valores, tam_tramo)
-                        val datos_aver_filtered = filtrar(datos_aver, nsigmas)
-                        val aver_filtered = (datos_aver_filtered.average() * (10.0.pow(precision))).toInt()
+                // Select time interval
+                .take(2000).drop(500)
+                .let { values ->
+                    when (settings.value) {
+                        AVER -> {
+                            // Average
+                            values.chunked(settings.sizeSequence)
+                                .map { it.average() }.toList()
+                                .filterBySigma(settings.nSigmas)
+                                .average()
+                                .timesTenToThePowerOf(settings.precision)
+                                .decimalToGray()
+                        }
 
-
-                        // Local key
-                        val key_local = decimal_to_gray(aver_filtered)
-                        key_local
+                        NOISE -> {
+                            // Max & min estimation
+                            values.chunked(settings.sizeSequence)
+                                .map { it.max() to it.min() }.unzip()
+                                .map { it.filterBySigma(settings.nSigmas) }
+                                .map { it.average() }
+                                // Noise
+                                .let { (max, min) -> abs(max - min) }
+                                .timesTenToThePowerOf(settings.precision)
+                                .decimalToGray()
+                        }
                     }
-                    // Average estimation
-                    "noise" -> {
-                        // Max estimation
-                        val datos_max = maximo_tramos(valores, tam_tramo)
-                        val datos_max_filtered = filtrar(datos_max, nsigmas)
-                        val promedio_max_filtered = datos_max_filtered.average()
-
-                        // Min estimation
-                        val datos_min = minimo_tramos(valores, tam_tramo)
-                        val datos_min_filtered = filtrar(datos_min, nsigmas)
-                        val promedio_min_filtered = datos_min_filtered.average()
-
-                        // Noise
-                        val noise = (abs(promedio_max_filtered - promedio_min_filtered) * (10.0.pow(precision))).toInt()
-
-                        // Local key
-                        val key_local = decimal_to_gray(noise)
-                        return key_local
-                    }
-
-                    else -> "????????"
                 }
+        }
+    }
+
+
+    fun main(fileNv: Int, fileV: Int, fileG: Int) =
+        sequenceOf(
+            Settings(fileNv, NOISE, 10, 3, 3),
+            Settings(fileNv, AVER, 10, 3, 2),
+            Settings(fileV, NOISE, 30, 1, 2),
+            Settings(fileV, AVER, 30, 1, 2),
+            Settings(fileG, NOISE, 10, 3, 4),
+            Settings(fileG, AVER, 10, 3, 5),
+        ).flatMap { settings ->
+            (0..2).map { column ->
+                process(column, settings)
             }
-    }
-
-    fun main(file_nv: Int, file_v: Int, file_g: Int) = run {
-        val key_nv_noise = procesa(file_nv, 0, "noise", 10, 3, 3) + procesa(file_nv, 1, "noise", 10, 3, 3) + procesa(file_nv, 2, "noise", 10, 3, 3)
-        val key_nv_aver = procesa(file_nv, 0, "aver", 10, 3, 2) + procesa(file_nv, 1, "aver", 10, 3, 2) + procesa(file_nv, 2, "aver", 10, 3, 2)
-        val key_v_noise = procesa(file_v, 0, "noise", 30, 1, 2) + procesa(file_v, 1, "noise", 30, 1, 2) + procesa(file_v, 2, "noise", 30, 1, 2)
-        val key_v_aver = procesa(file_v, 0, "aver", 30, 1, 2) + procesa(file_v, 1, "aver", 30, 1, 2) + procesa(file_v, 2, "aver", 30, 1, 2)
-        val key_g_noise = procesa(file_g, 0, "noise", 10, 3, 4) + procesa(file_g, 1, "noise", 10, 3, 4) + procesa(file_g, 2, "noise", 10, 3, 4)
-        val key_g_aver = procesa(file_g, 0, "aver", 10, 3, 5) + procesa(file_g, 1, "aver", 10, 3, 5) + procesa(file_g, 2, "aver", 10, 3, 5)
-
-        val key_main = key_nv_noise + key_nv_aver + key_v_noise + key_v_aver + key_g_noise + key_g_aver
-
-        key_main
-    }
+        }.joinToString("")
 
 }
+
+
+private data class Settings(val filename: Int, val value: Operation, val sizeSequence: Int, val nSigmas: Int, val precision: Int)
+
+private enum class Operation { NOISE, AVER }
+
+private fun List<Double>.filterBySigma(xSigmas: Int) = run {
+    val average = average()
+    val standardDeviation = sqrt(map { (it - average).pow(2) }.average())
+
+    filter { abs(it - average) <= xSigmas * standardDeviation }
+}
+
+private fun Double.timesTenToThePowerOf(precision: Int) = (this * 10.0.pow(precision)).toInt()
+
+private fun <T> T.mapIf(condition: Boolean, mapper: (T) -> T) = if (condition) mapper(this) else this
+private fun <T, R> Pair<T, T>.map(any: (T) -> R) = any(first) to any(second)
