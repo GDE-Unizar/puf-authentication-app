@@ -1,6 +1,7 @@
 package es.gde.unizar.puf
 
 import android.content.Context
+import android.util.Log
 import es.gde.unizar.puf.Operation.AVER
 import es.gde.unizar.puf.Operation.NOISE
 import kotlin.math.abs
@@ -8,23 +9,66 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 
-// ---------- CONFIG -------------
-private const val N_BITS = 6
-private const val START_TIME = 500
-private const val END_TIME = 2000
-private val GRAVITY = listOf(0.0, 0.0, 9.8)
-private fun getSettings(fileNv: Int, fileV: Int, fileG: Int) = sequenceOf(
-    Settings(fileNv, NOISE, 10, 3, 3),
-    Settings(fileNv, AVER, 10, 3, 2),
-    Settings(fileV, NOISE, 30, 1, 2),
-    Settings(fileV, AVER, 30, 1, 2),
-    Settings(fileG, NOISE, 10, 3, 4),
-    Settings(fileG, AVER, 10, 3, 5),
+/** data class to configure the steps */
+data class Step(
+    val data: List<List<Double>>,
+    val value: Operation,
+    val sizeSequence: Int,
+    val nSigmas: Int,
+    val precision: Int,
+    val startTime: Int,
+    val endTime: Int,
+    val gravity: List<Double>,
 )
 
+/** type of operations that can be applied */
+enum class Operation { NOISE, AVER }
 
 /** Processes the keys */
-class KeyProcessor(private val cntx: Context) {
+class KeyProcessor(
+    private val cntx: Context,
+    private val nBits: Int = 6,
+) {
+
+    /** Main method: extracts the key from the files */
+    fun main(settings: List<Step>) =
+        // for each step, for each column, process and concatenate all
+        settings.flatMap { setting ->
+            (0..2).map { column ->
+                process(setting, column)
+            }
+        }.joinToString("")
+
+    /** Processes a configuration for a column */
+    private fun process(step: Step, column: Int) =
+        step.data.asSequence()
+            // Select time interval
+            .take(step.endTime).drop(step.startTime)
+            // get column
+            .map { it[column] }
+            // subtract gravity
+            .map { it - step.gravity[column] }
+
+            .chunked(step.sizeSequence)
+            .run {
+                when (step.value) {
+
+                    // Average of the filtered averaged chunks
+                    AVER -> map { it.average() }.toList()
+                        .filterBySigma(step.nSigmas)
+                        .average()
+
+                    // difference of the average filtered max & min chunks
+                    NOISE -> map { it.max() to it.min() }.unzip().toList()
+                        .map { it.filterBySigma(step.nSigmas) }
+                        .map { it.average() }
+                        // Noise
+                        .let { (max, min) -> abs(max - min) }
+                }
+            }
+            // get the gray value of it*10^precision
+            .timesTenToThePowerOf(step.precision)
+            .decimalToGray()
 
     /** Reads the lines of a raw file */
     private fun <T> readRawFile(file: Int, mapper: (Sequence<String>) -> T) = cntx.resources.openRawResource(file).reader().useLines(mapper)
@@ -34,7 +78,7 @@ class KeyProcessor(private val cntx: Context) {
         // each line has min, max and the result
         lines.filter { it.isNotBlank() }
             .map { it.split("\t") }
-            .map { (min, max, res) -> Triple(min.toFloat(), max.toFloat(), res.padStart(N_BITS, '0')) }
+            .map { (min, max, res) -> Triple(min.toFloat(), max.toFloat(), res.padStart(nBits, '0')) }
             .toList()
     }
 
@@ -46,63 +90,41 @@ class KeyProcessor(private val cntx: Context) {
 
         // find and return
         grayValues.find { (min, max, _) -> value >= min && value < max }?.third
-            ?: "?".repeat(N_BITS)
+            ?: "?".repeat(nBits)
     }
 
-    /** Processes a configuration for a column */
-    private fun process(settings: Settings, column: Int) = run {
-        // Load file
-        readRawFile(settings.filename) { lines ->
-            lines
-                // Select time interval
-                .take(END_TIME).drop(START_TIME)
-                // extract column
-                .map { line ->
-                    line.split("\t")[column].toDouble()
+    // ----- testing -----
+
+    fun test() = run {
+        val (fileNv, fileV, fileG) = listOf(R.raw.example, R.raw.example2, R.raw.example3)
+            .map { file ->
+                readRawFile(file) { lines ->
+                    lines.map { line ->
+                        line.split("\t").map { it.toDouble() }
+                    }.toList()
                 }
-                // subtract gravity
-                .map { it - GRAVITY[column] }
+            }
+        val gravity = listOf(0.0, 0.0, 9.8)
 
-                .chunked(settings.sizeSequence)
-                .run {
-                    when (settings.value) {
+        val obtained = main(
+            listOf(
+                Step(fileNv, NOISE, 10, 3, 3, 500, 2000, gravity),
+                Step(fileNv, AVER, 10, 3, 2, 500, 2000, gravity),
+                Step(fileV, NOISE, 30, 1, 2, 500, 2000, gravity),
+                Step(fileV, AVER, 30, 1, 2, 500, 2000, gravity),
+                Step(fileG, NOISE, 10, 3, 4, 500, 2000, gravity),
+                Step(fileG, AVER, 10, 3, 5, 500, 2000, gravity),
+            )
+        )
+        val expected = "110101110101111110101000000010011000101000111010011100111000000010011000110000110101110001001011000000000000"
 
-                        // Average of the filtered averaged chunks
-                        AVER -> map { it.average() }.toList()
-                            .filterBySigma(settings.nSigmas)
-                            .average()
+        Log.d("OBTAINED", obtained)
+        Log.d("EXPECTED", expected)
 
-                        // difference of the average filtered max & min chunks
-                        NOISE -> map { it.max() to it.min() }.unzip().toList()
-                            .map { it.filterBySigma(settings.nSigmas) }
-                            .map { it.average() }
-                            // Noise
-                            .let { (max, min) -> abs(max - min) }
-                    }
-                }
-                // get the gray value of it*10^precision
-                .timesTenToThePowerOf(settings.precision)
-                .decimalToGray()
-        }
+        obtained == expected
     }
-
-    /** Main method: extracts the key from the files */
-    fun main(fileNv: Int, fileV: Int, fileG: Int) =
-        // for each configuration, for each column, process and concatenate all
-        getSettings(fileNv, fileV, fileG)
-            .flatMap { settings ->
-                (0..2).map { column ->
-                    process(settings, column)
-                }
-            }.joinToString("")
 
 }
-
-/** data class to configure the processes */
-private data class Settings(val filename: Int, val value: Operation, val sizeSequence: Int, val nSigmas: Int, val precision: Int)
-
-/** type of operations that can be applied */
-private enum class Operation { NOISE, AVER }
 
 /** Returns the values under the sigma */
 private fun List<Double>.filterBySigma(xSigmas: Int) = run {

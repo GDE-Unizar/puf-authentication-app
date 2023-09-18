@@ -1,13 +1,11 @@
 package es.gde.unizar.puf
 
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import es.gde.unizar.puf.databinding.ActivityMainBinding
-
-private const val EXPECTED = "110101110101111110101000000010011000101000111010011100111000000010011000110000110101110001001011000000000000"
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,15 +21,25 @@ class MainActivity : AppCompatActivity() {
         // beans
         val processor = KeyProcessor(this)
 
+        // test
+        thread {
+            val ok = processor.test()
+            runOnUiThread {
+                Toast.makeText(this, if (ok) "Test OK" else "Expected value differ!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         // config
         binding.btnGet.setOnClickListener {
-            binding.txtKey.text = processor.main(R.raw.example, R.raw.example2, R.raw.example3)
-            setPage(Page.KEY)
-            Log.d("GOT", binding.txtKey.text.toString())
-            Log.d("EXPECTED", EXPECTED)
-            if (binding.txtKey.text.toString() != EXPECTED) Toast.makeText(this, "Different!", Toast.LENGTH_SHORT).show()
+//            binding.txtKey.text = processor.main(R.raw.example, R.raw.example2, R.raw.example3)
+//            setPage(Page.KEY)
+//            Log.d("GOT", binding.txtKey.text.toString())
+//            Log.d("EXPECTED", EXPECTED)
+//            if (binding.txtKey.text.toString() != EXPECTED) Toast.makeText(this, "Different!", Toast.LENGTH_SHORT).show()
         }
-        binding.btnReset.setOnClickListener { setPage(Page.START) }
+        binding.btnReset.setOnClickListener {
+            setPage(Page.START)
+        }
 
         // start
         setPage(Page.START)
