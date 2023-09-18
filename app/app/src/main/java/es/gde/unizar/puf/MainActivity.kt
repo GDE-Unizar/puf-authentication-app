@@ -1,11 +1,18 @@
 package es.gde.unizar.puf
 
+import android.hardware.Sensor
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import es.gde.unizar.puf.databinding.ActivityMainBinding
 import kotlin.concurrent.thread
+
+
+private val List<Event>.convert: List<List<Double>>
+    get() = map { listOf(it.x, it.y, it.z).map { it.toDouble() } }
+
+val gravity = listOf(0.0, 0.0, 9.8)
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,6 +27,7 @@ class MainActivity : AppCompatActivity() {
 
         // beans
         val processor = KeyProcessor(this)
+        val eventReader = EventReader(this)
 
         // test
         thread {
@@ -31,11 +39,32 @@ class MainActivity : AppCompatActivity() {
 
         // config
         binding.btnGet.setOnClickListener {
-//            binding.txtKey.text = processor.main(R.raw.example, R.raw.example2, R.raw.example3)
-//            setPage(Page.KEY)
-//            Log.d("GOT", binding.txtKey.text.toString())
-//            Log.d("EXPECTED", EXPECTED)
-//            if (binding.txtKey.text.toString() != EXPECTED) Toast.makeText(this, "Different!", Toast.LENGTH_SHORT).show()
+            setPage(Page.WAIT)
+
+            // read
+            eventReader.record(Sensor.TYPE_ACCELEROMETER, 50, 100) { accelerometer1 ->
+
+                eventReader.record(Sensor.TYPE_ACCELEROMETER, 50, 100) { accelerometer2 ->
+                    eventReader.record(Sensor.TYPE_ACCELEROMETER, 50, 100) { accelerometer3 ->
+
+                        // compute
+                        val key = processor.main(
+                            listOf(
+                                Step(accelerometer1.convert, Operation.NOISE, 10, 3, 3, 500, 2000, gravity),
+                                Step(accelerometer1.convert, Operation.AVER, 10, 3, 2, 500, 2000, gravity),
+                                Step(accelerometer2.convert, Operation.NOISE, 30, 1, 2, 500, 2000, gravity),
+                                Step(accelerometer2.convert, Operation.AVER, 30, 1, 2, 500, 2000, gravity),
+                                Step(accelerometer3.convert, Operation.NOISE, 10, 3, 4, 500, 2000, gravity),
+                                Step(accelerometer3.convert, Operation.AVER, 10, 3, 5, 500, 2000, gravity),
+                            )
+                        )
+
+                        // set
+                        binding.txtKey.text = key
+                        setPage(Page.KEY)
+                    }
+                }
+            }
         }
         binding.btnReset.setOnClickListener {
             setPage(Page.START)
@@ -45,11 +74,12 @@ class MainActivity : AppCompatActivity() {
         setPage(Page.START)
     }
 
-    private enum class Page { START, KEY }
+    private enum class Page { START, WAIT, KEY }
 
     private fun setPage(page: Page) {
         listOf(
             binding.pageStart to Page.START,
+            binding.pageWait to Page.WAIT,
             binding.pageKey to Page.KEY,
         ).forEach { (view, withPage) ->
             view.visibility = if (page == withPage) View.VISIBLE else View.GONE
