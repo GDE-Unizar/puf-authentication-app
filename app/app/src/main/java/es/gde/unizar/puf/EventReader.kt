@@ -17,14 +17,14 @@ class EventReader(cntx: Context) {
     /**
      * records events
      */
-    fun record(sensorType: Int, samples: Int, periodMs: Int, callback: (List<Event>) -> Unit) {
-        val values = mutableListOf<Event>()
+    fun record(sensorType: Int, samples: Int, periodMs: Int, callback: (List<FloatArray>) -> Unit) {
+        val values = mutableListOf<FloatArray>()
 
         sensorManager.registerListener(
             object : SensorEventListener {
                 override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
                 override fun onSensorChanged(event: SensorEvent?) {
-                    values += Event(event?.values)
+                    event?.values?.let { values += it }
                     if (values.size >= samples) {
                         sensorManager.unregisterListener(this)
                         callback(values)
@@ -37,7 +37,3 @@ class EventReader(cntx: Context) {
     }
 
 }
-
-data class Event(val x: Float, val y: Float, val z: Float)
-
-fun Event(values: FloatArray?) = values?.let { Event(values[0], values[1], values[2]) } ?: Event(0f, 0f, 0f)

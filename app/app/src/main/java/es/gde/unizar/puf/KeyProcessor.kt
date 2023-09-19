@@ -11,7 +11,7 @@ import kotlin.math.sqrt
 
 /** data class to configure the steps */
 data class Step(
-    val data: List<List<Double>>, // TODO: List<Event> where Event(x,y,z)
+    val data: List<List<Double>>,
     val value: Operation,
     val sizeSequence: Int,
     val nSigmas: Int,

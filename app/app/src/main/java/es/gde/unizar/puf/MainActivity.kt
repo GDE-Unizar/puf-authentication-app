@@ -86,8 +86,7 @@ class MainActivity : AppCompatActivity() {
 
 private enum class Page { START, WAIT, KEY }
 
-private val List<Event>.sensor2process
-    get() = map { listOf(it.x, it.y, it.z).map { it.toDouble() } }
+private val List<FloatArray>.sensor2process get() = map { it.map { it.toDouble() } }
 
 val gravity = listOf(0.0, 0.0, 9.8)
 
