@@ -36,17 +36,24 @@ class MainActivity : AppCompatActivity() {
 
         // config
         binding.btnGet.setOnClickListener {
-            setPage(Page.WAIT) // TODO: real progress
+            progress("Starting process", value = 0, full = 50 * 3)
 
             // read
             // TODO: place this in a sequential way
-            eventReader.record(accelerometerSensor, 50, 100) { accelerometer ->
+            eventReader.record(accelerometerSensor, 50, 100, {
+                progress("Reading accelerometer ($it/50)", value = it, secondary = 50)
+            }) { accelerometer ->
                 vibrator.vibrate()
-                eventReader.record(accelerometerSensor, 50, 100) { accelerometerVibration ->
+                eventReader.record(accelerometerSensor, 50, 100, {
+                    progress("Reading accelerometer with vibration ($it/50)", value = 50 + it, secondary = 50 * 2)
+                }) { accelerometerVibration ->
                     vibrator.stop()
-                    eventReader.record(gyroscopeSensor, 50, 100) { gyroscope ->
+                    eventReader.record(gyroscopeSensor, 50, 100, {
+                        progress("Reading gyroscope ($it/50)", value = 50 * 2 + it, secondary = 50 * 3)
+                    }) { gyroscope ->
 
                         // compute
+                        progress("Calculating key", full = 0)
                         val key = processor.main(
                             listOf(
                                 Step(accelerometer.sensor2process, Operation.NOISE, 10, 3, 3, 500, 2000, gravity),
@@ -59,18 +66,37 @@ class MainActivity : AppCompatActivity() {
                         )
 
                         // set
-                        binding.txtKey.text = key
-                        setPage(Page.KEY)
+                        showKey(key)
                     }
                 }
             }
         }
-        binding.btnReset.setOnClickListener {
-            setPage(Page.START)
-        }
+        binding.btnReset.setOnClickListener { reset() }
 
         // start
         setPage(Page.START)
+    }
+
+    private fun reset() {
+        setPage(Page.START)
+    }
+
+    private fun progress(text: String, value: Int? = null, secondary: Int? = null, full: Int? = null) {
+        setPage(Page.WAIT)
+        binding.progressText.text = text
+        binding.progressBar.apply {
+            full?.let {
+                max = it
+                isIndeterminate = it <= 0
+            }
+            value?.let { progress = it }
+            secondary?.let { secondaryProgress = it }
+        }
+    }
+
+    private fun showKey(key: String) {
+        binding.txtKey.text = key
+        setPage(Page.KEY)
     }
 
     private fun setPage(page: Page) {
