@@ -36,20 +36,21 @@ class MainActivity : AppCompatActivity() {
 
         // config
         binding.btnGet.setOnClickListener {
-            progress("Starting process", value = 0, full = 50 * 3)
+            val samples = 2500
+            progress("Starting process", value = 0, full = 2500 * 3)
 
             // read
             // TODO: place this in a sequential way
-            eventReader.record(accelerometerSensor, 50, 100, {
-                progress("Reading accelerometer ($it/50)", value = it, secondary = 50)
+            eventReader.record(accelerometerSensor, samples, 10, {
+                progress("Reading accelerometer", value = it, secondary = samples)
             }) { accelerometer ->
                 vibrator.vibrate()
-                eventReader.record(accelerometerSensor, 50, 100, {
-                    progress("Reading accelerometer with vibration ($it/50)", value = 50 + it, secondary = 50 * 2)
+                eventReader.record(accelerometerSensor, 2500, 10, {
+                    progress("Reading accelerometer with vibration", value = 2500 + it, secondary = 2500 * 2)
                 }) { accelerometerVibration ->
                     vibrator.stop()
-                    eventReader.record(gyroscopeSensor, 50, 100, {
-                        progress("Reading gyroscope ($it/50)", value = 50 * 2 + it, secondary = 50 * 3)
+                    eventReader.record(gyroscopeSensor, 2500, 10, {
+                        progress("Reading gyroscope", value = 2500 * 2 + it, secondary = 2500 * 3)
                     }) { gyroscope ->
 
                         // compute
