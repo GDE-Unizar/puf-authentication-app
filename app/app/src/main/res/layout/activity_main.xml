@@ -82,7 +82,8 @@
                 android:layout_height="wrap_content"
                 android:padding="@dimen/padding"
                 android:text="00101010"
-                android:textColor="#4CAF50" />
+                android:textColor="#4CAF50"
+                android:textIsSelectable="true" />
 
         </LinearLayout>
 
