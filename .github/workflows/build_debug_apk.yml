@@ -40,11 +40,8 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build & assemble with gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: >
-            build
-            assemble${{ env.VARIANT }}
+        # the gradle action fails
+        run: ./gradlew assemble${{ env.VARIANT }}
 
       - name: Update ${{ env.TAG }} tag to current commit
         # equivalent to EndBug/latest-tag@latest but simpler
