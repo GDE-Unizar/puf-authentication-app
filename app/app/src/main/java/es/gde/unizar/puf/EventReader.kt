@@ -24,7 +24,7 @@ class EventReader(cntx: Context) {
             object : SensorEventListener {
                 override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
                 override fun onSensorChanged(event: SensorEvent?) {
-                    event?.values?.let { values += it }
+                    event?.values?.let { values += it.clone() }
                     progress(values.size)
                     if (values.size >= samples) {
                         sensorManager.unregisterListener(this)
