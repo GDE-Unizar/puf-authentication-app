@@ -3,6 +3,7 @@ package es.gde.unizar.puf
 import android.hardware.Sensor
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -37,24 +38,31 @@ class MainActivity : AppCompatActivity() {
         // config
         binding.btnGet.setOnClickListener {
             val samples = 2500
-            progress("Starting process", value = 0, full = 2500 * 3)
+            val periodMs = 10
+            progress("Starting process (${samples * 3 * periodMs / 1000}s)", value = 0, full = 2500 * 3)
 
             // read
             // TODO: place this in a sequential way
-            eventReader.record(accelerometerSensor, samples, 10, {
-                progress("Reading accelerometer", value = it, secondary = samples)
+            eventReader.record(accelerometerSensor, samples, periodMs, {
+                progress("Reading accelerometer (${(samples * 3 - it) * periodMs / 1000}s)", value = it, secondary = samples)
             }) { accelerometer ->
                 vibrator.vibrate()
-                eventReader.record(accelerometerSensor, 2500, 10, {
-                    progress("Reading accelerometer with vibration", value = 2500 + it, secondary = 2500 * 2)
+                eventReader.record(accelerometerSensor, 2500, periodMs, {
+                    progress("Reading accelerometer with vibration (${(samples * 2 - it) * periodMs / 1000}s)", value = 2500 + it, secondary = 2500 * 2)
                 }) { accelerometerVibration ->
                     vibrator.stop()
-                    eventReader.record(gyroscopeSensor, 2500, 10, {
-                        progress("Reading gyroscope", value = 2500 * 2 + it, secondary = 2500 * 3)
+                    eventReader.record(gyroscopeSensor, 2500, periodMs, {
+                        progress("Reading gyroscope (${(samples - it) * periodMs / 1000}s)", value = 2500 * 2 + it, secondary = 2500 * 3)
                     }) { gyroscope ->
 
                         // compute
                         progress("Calculating key", full = 0)
+
+                        listOf("ACCELEROMETER" to accelerometer, "ACCELEROMETER VIBRATION" to accelerometerVibration, "GYROSCOPE" to gyroscope).flatMap { (label, data) -> listOf(label) + data.map { it.joinToString("\t") } }.forEachIndexed { index, s ->
+                            Log.d("PUF_SENSOR_RESULT", "$index $s")
+                            Thread.sleep(1)
+                        }
+
                         val key = processor.main(
                             listOf(
                                 Step(accelerometer.sensor2process, Operation.NOISE, 10, 3, 3, 500, 2000, gravity),
@@ -65,6 +73,7 @@ class MainActivity : AppCompatActivity() {
                                 Step(gyroscope.sensor2process, Operation.AVER, 10, 3, 5, 500, 2000, gravity),
                             )
                         )
+                        Log.d("PUF_SENSOR_RESULT", "KEY=$key")
 
                         // set
                         showKey(key)
