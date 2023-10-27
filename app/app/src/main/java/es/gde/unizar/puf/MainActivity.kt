@@ -7,9 +7,12 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import es.gde.unizar.puf.databinding.ActivityMainBinding
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,48 +40,67 @@ class MainActivity : AppCompatActivity() {
 
         // config
         binding.btnGet.setOnClickListener {
-            val samples = 2500
-            val periodMs = 10
-            progress("Starting process (${samples * 3 * periodMs / 1000}s)", value = 0, full = 2500 * 3)
+            lifecycleScope.launch {
+                val timerMillis = 5000
+                val samples = 1000
+                val periodMillis = 10
 
-            // read
-            // TODO: place this in a sequential way
-            eventReader.record(accelerometerSensor, samples, periodMs, {
-                progress("Reading accelerometer (${(samples * 3 - it) * periodMs / 1000}s)", value = it, secondary = samples)
-            }) { accelerometer ->
-                vibrator.vibrate()
-                eventReader.record(accelerometerSensor, 2500, periodMs, {
-                    progress("Reading accelerometer with vibration (${(samples * 2 - it) * periodMs / 1000}s)", value = 2500 + it, secondary = 2500 * 2)
-                }) { accelerometerVibration ->
-                    vibrator.stop()
-                    eventReader.record(gyroscopeSensor, 2500, periodMs, {
-                        progress("Reading gyroscope (${(samples - it) * periodMs / 1000}s)", value = 2500 * 2 + it, secondary = 2500 * 3)
-                    }) { gyroscope ->
+                var pendingMillis = timerMillis + samples * periodMillis * 2
+                var currentMillis = 0
+                progress("Starting process (${pendingMillis / 1000}s)", value = 0, full = pendingMillis)
 
-                        // compute
-                        progress("Calculating key", full = 0)
-
-                        listOf("ACCELEROMETER" to accelerometer, "ACCELEROMETER VIBRATION" to accelerometerVibration, "GYROSCOPE" to gyroscope).flatMap { (label, data) -> listOf(label) + data.map { it.joinToString("\t") } }.forEachIndexed { index, s ->
-                            Log.d("PUF_SENSOR_RESULT", "$index $s")
-                            Thread.sleep(1)
-                        }
-
-                        val key = processor.main(
-                            listOf(
-                                Step(accelerometer.sensor2process, Operation.NOISE, 10, 3, 3, 500, 2000, gravity),
-                                Step(accelerometer.sensor2process, Operation.AVER, 10, 3, 2, 500, 2000, gravity),
-                                Step(accelerometerVibration.sensor2process, Operation.NOISE, 30, 1, 2, 500, 2000, gravity),
-                                Step(accelerometerVibration.sensor2process, Operation.AVER, 30, 1, 2, 500, 2000, gravity),
-                                Step(gyroscope.sensor2process, Operation.NOISE, 10, 3, 4, 500, 2000, gravity),
-                                Step(gyroscope.sensor2process, Operation.AVER, 10, 3, 5, 500, 2000, gravity),
-                            )
-                        )
-                        Log.d("PUF_SENSOR_RESULT", "KEY=$key")
-
-                        // set
-                        showKey(key)
-                    }
+                // wait 5 seconds to stabilize
+                Timer(timerMillis, 500) {
+                    pendingMillis -= 500
+                    currentMillis += 500
+                    progress("Stabilizing (${pendingMillis / 1000}s)", value = currentMillis, secondary = timerMillis)
                 }
+
+                // read no vibration
+                val (accelerometer, gyroscope) = awaitAll(async {
+                    eventReader.record(accelerometerSensor, samples, periodMillis) {
+                        pendingMillis -= periodMillis
+                        currentMillis += periodMillis
+                        progress("Reading accelerometer + gyroscope (${pendingMillis / 1000}s)", value = currentMillis, secondary = timerMillis + samples * periodMillis)
+                    }
+                }, async {
+                    eventReader.record(gyroscopeSensor, samples, periodMillis) {
+                        // concurrent
+                    }
+                })
+
+                // read vibration
+                vibrator.vibrate()
+                val accelVibrate = eventReader.record(accelerometerSensor, samples, periodMillis) {
+                    pendingMillis -= periodMillis
+                    currentMillis += periodMillis
+                    progress("Reading accelerometer with vibration (${pendingMillis / 1000}s)", value = currentMillis, secondary = timerMillis + samples * periodMillis * 2)
+                }
+                vibrator.stop()
+
+                progress("Calculating key", full = 0)
+
+                // debug
+                //listOf("ACCELEROMETER" to accelerometer, "ACCELEROMETER VIBRATION" to acceleVibrate, "GYROSCOPE" to gyroscope).flatMap { (label, data) -> listOf(label) + data.map { it.joinToString("\t") } }.forEachIndexed { index, s ->
+                //    Log.d("PUF_SENSOR_RESULT", "$index $s")
+                //    Thread.sleep(1)
+                //}
+
+                // process
+                val key = processor.main(
+                    listOf(
+                        Step(accelerometer.sensor2process, Operation.NOISE, 10, 3, 3, 0, samples, gravity),
+                        Step(accelerometer.sensor2process, Operation.AVER, 10, 3, 2, 0, samples, gravity),
+                        Step(accelVibrate.sensor2process, Operation.NOISE, 30, 1, 2, 0, samples, gravity),
+                        Step(accelVibrate.sensor2process, Operation.AVER, 30, 1, 2, 0, samples, gravity),
+                        Step(gyroscope.sensor2process, Operation.NOISE, 10, 3, 4, 0, samples, gravity),
+                        Step(gyroscope.sensor2process, Operation.AVER, 10, 3, 5, 0, samples, gravity),
+                    )
+                )
+                Log.d("PUF_SENSOR_RESULT", "KEY=$key")
+
+                // set
+                showKey(key)
             }
         }
         binding.btnReset.setOnClickListener { reset() }

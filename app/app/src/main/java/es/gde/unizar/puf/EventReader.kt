@@ -5,6 +5,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * Reads events
@@ -17,7 +19,7 @@ class EventReader(cntx: Context) {
     /**
      * records events
      */
-    fun record(sensorType: Int, samples: Int, periodMs: Int, progress: (Int) -> Unit, callback: (List<FloatArray>) -> Unit) {
+    suspend fun record(sensorType: Int, samples: Int, periodMs: Int, progress: (Int) -> Unit) = suspendCoroutine { continuation ->
         val values = mutableListOf<FloatArray>()
 
         sensorManager.registerListener(
@@ -28,7 +30,7 @@ class EventReader(cntx: Context) {
                     progress(values.size)
                     if (values.size >= samples) {
                         sensorManager.unregisterListener(this)
-                        callback(values)
+                        continuation.resume(values)
                     }
                 }
             },
