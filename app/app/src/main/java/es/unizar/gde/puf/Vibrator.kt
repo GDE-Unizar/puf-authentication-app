@@ -1,4 +1,4 @@
-package es.gde.unizar.puf
+package es.unizar.gde.puf
 
 import android.content.Context
 import android.os.Vibrator

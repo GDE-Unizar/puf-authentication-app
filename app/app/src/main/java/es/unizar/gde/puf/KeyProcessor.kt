@@ -1,9 +1,9 @@
-package es.gde.unizar.puf
+package es.unizar.gde.puf
 
 import android.content.Context
 import android.util.Log
-import es.gde.unizar.puf.Operation.AVER
-import es.gde.unizar.puf.Operation.NOISE
+import es.unizar.gde.puf.Operation.AVER
+import es.unizar.gde.puf.Operation.NOISE
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -121,7 +121,7 @@ class KeyProcessor(
         Log.d("OBTAINED", obtained)
         Log.d("EXPECTED", expected)
 
-        obtained == expected
+        listOf(obtained, expected).map { it.replace(Regex("[^01]"), "") }.let { (o, e) -> o == e }
     }
 
 }

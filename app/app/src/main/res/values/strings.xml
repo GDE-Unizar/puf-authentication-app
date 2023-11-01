@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">PUF</string>
+    <string name="app_name">GDE PUF Authentication</string>
     <string name="instructions">Keep your device in a flat surface. Don\'t move.</string>
     <string name="get_key">Get the key!</string>
     <string name="reset">Reset</string>

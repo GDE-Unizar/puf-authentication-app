@@ -1,4 +1,4 @@
-package es.gde.unizar.puf
+package es.unizar.gde.puf
 
 import android.hardware.Sensor
 import android.os.Build
@@ -8,7 +8,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import es.gde.unizar.puf.databinding.ActivityMainBinding
+import es.unizar.gde.puf.databinding.ActivityMainBinding
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
         val vibrator = Vibrator(this)
 
         // test
-        thread {
+        if (BuildConfig.DEBUG) thread {
             val ok = processor.test()
             runOnUiThread {
                 Toast.makeText(this, if (ok) "Test OK" else "Expected value differ!", Toast.LENGTH_SHORT).show()
@@ -81,10 +81,12 @@ class MainActivity : AppCompatActivity() {
                 progress("Calculating key", full = 0)
 
                 // debug
-                //listOf("ACCELEROMETER" to accelerometer, "ACCELEROMETER VIBRATION" to acceleVibrate, "GYROSCOPE" to gyroscope).flatMap { (label, data) -> listOf(label) + data.map { it.joinToString("\t") } }.forEachIndexed { index, s ->
-                //    Log.d("PUF_SENSOR_RESULT", "$index $s")
-                //    Thread.sleep(1)
-                //}
+                //listOf("ACCELEROMETER" to accelerometer, "ACCELEROMETER VIBRATION" to acceleVibrate, "GYROSCOPE" to gyroscope)
+                //    .flatMap { (label, data) -> listOf(label) + data.map { it.joinToString("\t") } }
+                //    .forEachIndexed { index, s ->
+                //        Log.d("PUF_SENSOR_RESULT", "$index $s")
+                //        Thread.sleep(1)
+                //    }
 
                 // process
                 val key = processor.main(
@@ -139,6 +141,9 @@ class MainActivity : AppCompatActivity() {
         ).forEach { (view, withPage) ->
             view.visibility = if (page == withPage) View.VISIBLE else View.GONE
         }
+
+        binding.btnGet.isEnabled = page == Page.START
+        binding.btnReset.isEnabled = page == Page.KEY
     }
 }
 

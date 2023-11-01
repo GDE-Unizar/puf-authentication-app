@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "es.gde.unizar.puf"
+    namespace = "es.unizar.gde.puf"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "es.gde.unizar.puf"
+        applicationId = "es.unizar.gde.puf"
         minSdk = 16
         targetSdk = 33
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +32,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
 }
