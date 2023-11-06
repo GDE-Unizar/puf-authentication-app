@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>PUF validation</title>
+
+<style>
+
+body > div {
+	position: absolute;
+	top: 1em;
+	bottom: 1em;
+	left: 1em;
+	right: 1em;
+
+	flex-direction: column;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+}
+
+
+/* https://www.w3schools.com/howto/howto_css_loader.asp */
+.loader {
+  border: 16px solid #f3f3f3; /* Light grey */
+  border-top: 16px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+</style>
+
+</head>
+<body>
+
+
+<div>
+	<div id="loader" class="loader"></div> 
+	<h1 id="result">Loading...</h1>
+</div>
+
+<script>
+
+let result = document.getElementById('result');
+let loader = document.getElementById('loader');
+
+function init(){
+	fetch("https://api.github.com/repos/abeln94/GDE-puf/issues/1")
+		.then(e=>e.json())
+		.then(e=>e.body)
+		.then(e=>JSON.parse(e))
+		.then(data=>{
+			console.log(data);
+			
+			const key = new URLSearchParams(window.location.search).get('key');
+			
+			if(key === null){
+				result.innerHTML = `Missing key parameter`;
+				return;
+			}
+			
+			devices = data.devices
+				.map(device => [device, hamming(device.key, key)])
+				.filter(([_, distance]) => distance >= data.distance)
+				.sort(([_, a], [__, b]) => a - b);
+
+			if (devices) {
+			  result.innerHTML = `The provided key corresponds to ${devices[0][0].name}`;
+			} else {
+			  result.innerHTML = `The provided key corresponds to multiple devices? ${devices.map(d=>d.name).join(" - ")}`;
+			}
+
+
+		}).catch(e =>{
+			console.error(e);
+			result.innerHTML = "An error ocurred";
+		}).finally(()=>{
+			loader.style.display = 'none';
+		});
+}
+
+
+
+function hamming(a, b) {
+	a = a.replaceAll(/[^01]/g,'');
+	b = b.replaceAll(/[^01]/g,'');
+	let size = Math.min(a.length, b.length);
+	return Array.from(Array(size), (_, i) => a[i] == b[i] ? 1 : 0).reduce((a, b) => a + b, 0) / size;
+}
+
+window.addEventListener('load', init, false);
+
+</script>
+
+</body>
+</html> 
