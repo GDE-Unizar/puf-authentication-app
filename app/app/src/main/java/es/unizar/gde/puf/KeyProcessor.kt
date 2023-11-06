@@ -37,7 +37,7 @@ class KeyProcessor(
             (0..2).map { column ->
                 process(setting, column)
             }
-        }.joinToString(" ")
+        }.joinToString("")
 
     /** Processes a configuration for a column */
     private fun process(step: Step, column: Int) =

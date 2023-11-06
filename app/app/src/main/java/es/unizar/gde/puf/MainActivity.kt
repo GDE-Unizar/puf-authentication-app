@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(
                     Intent(
                         Intent.ACTION_VIEW,
-                        Uri.parse("https://abeln94.github.io/GDE-puf?key=" + binding.txtKey.text.replace(Regex(" "), ""))
+                        Uri.parse("https://abeln94.github.io/GDE-puf?key=" + binding.txtKey.text.replace(Regex("[^01]"), ""))
                     )
                 )
             }.onFailure {
@@ -118,7 +118,13 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PUF_SENSOR_RESULT", "KEY=$key")
 
                 // set
-                showKey(key)
+                showKey(
+                    key.chunked(3 * 2 * 6).joinToString("\n") {
+                        it.chunked(2 * 6).joinToString("  ") {
+                            it.chunked(6).joinToString(" ")
+                        }
+                    }
+                )
             }
         }
         binding.btnReset.setOnClickListener { reset() }
