@@ -1,6 +1,8 @@
 package es.unizar.gde.puf
 
+import android.content.Intent
 import android.hardware.Sensor
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -35,6 +37,20 @@ class MainActivity : AppCompatActivity() {
             val ok = processor.test()
             runOnUiThread {
                 Toast.makeText(this, if (ok) "Test OK" else "Expected value differ!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // click to open
+        binding.txtKey.setOnClickListener {
+            runCatching {
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://abeln94.github.io/GDE-puf?key=" + binding.txtKey.text.replace(Regex(" "), ""))
+                    )
+                )
+            }.onFailure {
+                Toast.makeText(this, "Unable to open the browser", Toast.LENGTH_SHORT).show()
             }
         }
 
