@@ -74,10 +74,10 @@ function init(){
 				.filter(([_, distance]) => distance >= data.distance)
 				.sort(([_, a], [__, b]) => a - b);
 
-			if (devices) {
+			if (devices.length != 0) {
 			  result.innerHTML = `The provided key corresponds to ${devices[0][0].name}`;
 			} else {
-			  result.innerHTML = `The provided key corresponds to multiple devices? ${devices.map(d=>d.name).join(" - ")}`;
+			  result.innerHTML = `The provided key doesn't correspond to any known devices`;
 			}
 
 
