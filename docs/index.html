@@ -48,6 +48,7 @@ body > div {
 	<div id="loader" class="loader"></div> 
 	<h1 id="result">Loading...</h1>
     <img id="image" width="auto" height="40%"/>
+	<span id="debug">
 </div>
 
 <script>
@@ -55,6 +56,7 @@ body > div {
 let result = document.getElementById('result');
 let loader = document.getElementById('loader');
 let image = document.getElementById('image');
+let debug = document.getElementById('debug');
 
 function init(){
 	fetch("https://api.github.com/repos/abeln94/GDE-puf/issues/1")
@@ -73,6 +75,8 @@ function init(){
 			
 			devices = data.devices
 				.map(device => [device, hamming(device.key, key)]);
+				
+			if(data.debug) debug.innerHTML = devices.map(([device, distance])=>`${device.name} : ${distance}`).join("<br>");
 			console.log(devices);
 			devices = devices
 				.filter(([_, distance]) => distance >= data.distance)
@@ -84,6 +88,7 @@ function init(){
 				image.src = devices[0][0].image;
 			} else {
 				result.innerHTML = `The provided key doesn't correspond to any known devices`;
+				image.src = "https://upload.wikimedia.org/wikipedia/commons/d/d9/Icon-round-Question_mark.svg";
 			}
 
 
