@@ -47,12 +47,14 @@ body > div {
 <div>
 	<div id="loader" class="loader"></div> 
 	<h1 id="result">Loading...</h1>
+    <img id="image" width="auto" height="40%"/>
 </div>
 
 <script>
 
 let result = document.getElementById('result');
 let loader = document.getElementById('loader');
+let image = document.getElementById('image');
 
 function init(){
 	fetch("https://api.github.com/repos/abeln94/GDE-puf/issues/1")
@@ -70,14 +72,18 @@ function init(){
 			}
 			
 			devices = data.devices
-				.map(device => [device, hamming(device.key, key)])
+				.map(device => [device, hamming(device.key, key)]);
+			console.log(devices);
+			devices = devices
 				.filter(([_, distance]) => distance >= data.distance)
 				.sort(([_, a], [__, b]) => a - b);
 
+
 			if (devices.length != 0) {
-			  result.innerHTML = `The provided key corresponds to ${devices[0][0].name}`;
+				result.innerHTML = `The provided key corresponds to ${devices[0][0].name}`;
+				image.src = devices[0][0].image;
 			} else {
-			  result.innerHTML = `The provided key doesn't correspond to any known devices`;
+				result.innerHTML = `The provided key doesn't correspond to any known devices`;
 			}
 
 
