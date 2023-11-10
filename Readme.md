@@ -2,9 +2,9 @@
 
 # Proposal of a new PUF based on sensors for the identification of IoT smart mobile devices
 
-Authors: Raúl Aparicio-Téllez, Jorge Fernandez-Aragon, Abel Naya-Forcano and Guillermo Diez-Señorans
+Authors: Raúl Aparicio-Téllez (r.aparicio@unizar.es), Jorge Fernandez-Aragon (jorgefusti96@gmail.com), Abel Naya-Forcano (abeln@unizar.es) and Guillermo Diez-Señorans (gds@unizar.es)
 
-Supervisors: Miguel Garcia-Bosque, Santiago Celma
+Supervisors: Miguel Garcia-Bosque (mgbosque@unizar.es), Santiago Celma (scelma@unizar.es)
 
 Group of Electronic Design (GDE), I3A, University of Zaragoza, Pedro Cerbuna 12, Zaragoza, Spain
 
